@@ -1,8 +1,8 @@
+use super::RepositoryError;
 use axum::async_trait;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 use validator::Validate;
-use super::RepositoryError;
 
 #[async_trait]
 pub trait TodoRepository: Clone + Send + Sync + 'static {
