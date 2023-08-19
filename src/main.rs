@@ -1,17 +1,17 @@
 mod handlers;
 mod repositories;
 
-use crate::repositories::{TodoRepository, TodoRepositoryForDb};
+use crate::handlers::todo::{all_todo, create_todo, delete_todo, find_todo, update_todo};
+use crate::repositories::todo::{TodoRepository, TodoRepositoryForDb};
 use axum::{
     extract::Extension,
     routing::{get, post},
     Router,
 };
 use dotenv::dotenv;
-use handlers::{all_todo, create_todo, delete_todo, find_todo, update_todo};
+use hyper::header::CONTENT_TYPE;
 use sqlx::PgPool;
 use std::{env, net::SocketAddr, sync::Arc};
-use hyper::header::CONTENT_TYPE;
 use tower_http::cors::{Any, CorsLayer, Origin};
 
 #[tokio::main]
@@ -64,13 +64,13 @@ async fn root() -> &'static str {
 
 #[cfg(test)]
 mod test {
-    use crate::repositories::{test_utils::TodoRepositoryForMemory, CreateTodo, Todo};
-
     use super::*;
+    use crate::repositories::todo::test_utils::TodoRepositoryForMemory;
+    use crate::repositories::todo::{CreateTodo, Todo};
     use axum::http::StatusCode;
     use axum::{
         body::Body,
-        http::{header, Method, Request},
+        http::{Method, Request},
         response::Response,
     };
     use tower::ServiceExt;
@@ -79,7 +79,7 @@ mod test {
         Request::builder()
             .uri(path)
             .method(method)
-            .header(header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+            .header(CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
             .body(Body::from(json_body))
             .unwrap()
     }
@@ -131,7 +131,7 @@ mod test {
         repository
             .create(CreateTodo::new("should_find_todo".to_string()))
             .await
-            .expect("failed create todo");
+            .expect("failed create handler");
         let req = build_todo_req_with_empty(Method::GET, "/todos/1");
         let res = create_app(repository).oneshot(req).await.unwrap();
         let todo = res_to_todo(res).await;
@@ -145,7 +145,7 @@ mod test {
         repository
             .create(CreateTodo::new("should_get_all_todos".to_string()))
             .await
-            .expect("failed create todo");
+            .expect("failed create handler");
         let req = build_todo_req_with_empty(Method::GET, "/todos");
         let res = create_app(repository).oneshot(req).await.unwrap();
         let bytes = hyper::body::to_bytes(res.into_body()).await.unwrap();
@@ -162,7 +162,7 @@ mod test {
         repository
             .create(CreateTodo::new("before_update_todo".to_string()))
             .await
-            .expect("failed create todo");
+            .expect("failed create handler");
         let req = build_todo_req_with_json(
             "/todos/1",
             Method::PATCH,
@@ -184,7 +184,7 @@ mod test {
         repository
             .create(CreateTodo::new("should_delete_todo".to_string()))
             .await
-            .expect("failed create todo");
+            .expect("failed create handler");
         let req = build_todo_req_with_empty(Method::DELETE, "/todos/1");
         let res = create_app(repository).oneshot(req).await.unwrap();
         assert_eq!(StatusCode::NO_CONTENT, res.status());
